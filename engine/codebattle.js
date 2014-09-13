@@ -10,6 +10,16 @@ var Commander = function()
     this.gunDirectionAmend = 0.0;
     this.bodyDirectionAmend = 0.0;
     this.acceleration = 0.0;
+    this.messages = new Array();
+}
+
+Commander.prototype.leaveMessage = function()
+{
+    var message = new Array();
+    for (i in arguments) {
+        message.push(arguments[i]);
+    }
+    this.messages.push(message);
 }
 
 Commander.prototype.accelerate = function(value)
@@ -125,6 +135,7 @@ Game.prototype.generateSensor = function(tank)
     sensor.bodyDirection = tank.bodyDirection;
     sensor.gunDirection = tank.gunDirection;
     sensor.radarDirection = tank.radarDirection;
+    sensor.speed = tank.speed;
 
     var obstaclePoint = this.getObstaclePoint(tank.location, tank.radarDirection);
     if (obstaclePoint !== null)
@@ -161,6 +172,17 @@ Game.prototype.run = function()
             var commander = new Commander();
             var sensor = this.generateSensor(tank);
             player.controller.onStep(sensor, commander);
+
+            // Show messages
+            for (var i in commander.messages)
+            {
+                var message = commander.messages[i];
+                var args = new Array();
+                args.push("#" + time);
+                args.push("[" + player.name + "] -");
+                args = args.concat(message);
+                console.log.apply(console, args);
+            }
 
             // Apply command on tank
             tank.radarDirection = commander.radarDirection;
