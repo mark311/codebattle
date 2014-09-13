@@ -1,7 +1,9 @@
 var util = require("./util.js");
+var display = require("./display.js");
 var Vector = util.Vector;
 var Location = util.Location;
 var LineSeg = util.LineSeg;
+var fs = require('fs');
 
 
 var Commander = function()
@@ -42,13 +44,16 @@ Commander.prototype.setRadar = function(direction)
     this.radarDirection = direction;
 }
 
-var Tank = function(location)
+var Tank = function(location, bodyFace, gunFace)
 {
     this.bodyDirection = 0.0;
     this.gunDirection = 0.0;
     this.radarDirection = 0.0;
     this.speed = 0.0;
     this.location = location;
+
+    this.bodyFace = bodyFace;
+    this.gunFace = gunFace;
 }
 
 var Map = function(width, height)
@@ -61,6 +66,16 @@ var Map = function(width, height)
         new LineSeg(new Vector(this.width, this.height), new Vector(0, this.height)),
         new LineSeg(new Vector(0, this.height), new Vector(0, 0))
     ];
+}
+
+Map.prototype.getLeftBottom = function()
+{
+    return new Location(0, 0);
+}
+
+Map.prototype.getRightUp = function()
+{
+    return new Location(this.width, this.height);
 }
 
 Map.prototype.center = function()
@@ -90,6 +105,7 @@ var Game = function(battleField)
     this.timeLimit = 10000;
     this.map = new Map(100, 100);
     this.players = new Array();
+    this.gd = new display.GraphicDevice();
 }
 
 Game.prototype.setMap = function(map)
@@ -123,28 +139,13 @@ Game.prototype.getObstaclePoint = function(location, radarDirection)
     return null;
 }
 
-Game.prototype.generateSensor = function(tank)
+Game.prototype.exportMotionDataToFile = function(file)
 {
-    var sensor = {};
-    sensor.location = tank.location;
-    sensor.bodyDirection = tank.bodyDirection;
-    sensor.gunDirection = tank.gunDirection;
-    sensor.radarDirection = tank.radarDirection;
-    sensor.speed = tank.speed;
-
-    var obstaclePoint = this.getObstaclePoint(tank.location, tank.radarDirection);
-    if (obstaclePoint !== null)
-    {
-        sensor.obstacleDistance = (new LineSeg(tank.location, obstaclePoint)).length();
-        sensor.obstacleType = "wall";
-    }
-    else
-    {
-        sensor.obstacleDistance = NaN;
-        sensor.obstacleType = "empty";
-    }
-
-    return sensor;
+    fs.writeFile(file, this.gd.exportToJson(), function(err) {
+        if(err) {
+            throw err;
+        }
+    });
 }
 
 Game.prototype.checkCollision = function(tank)
@@ -157,15 +158,52 @@ Game.prototype.run = function()
     var time = 0;
     var finished = false;
 
+    // Init
+    this.gd.setBorder(this.map.getLeftBottom(), this.map.getRightUp());
+    this.gd.newFrame();
+    for (i in this.players)
+    {
+        var player = this.players[i];
+        var tank = player.tank;
+
+        this.gd.registerFace(tank.bodyFace);
+        this.gd.registerFace(tank.gunFace);
+
+        this.gd.drawObject(tank.bodyFace, tank.location, tank.bodyDirection);
+        this.gd.drawObject(tank.gunFace, tank.location, tank.gunDirection);
+    }
+
     while (!finished && time < this.timeLimit)
     {
+        // New frame
+        this.gd.newFrame();
+
         for (i in this.players)
         {
             var player = this.players[i];
             var tank = player.tank;
 
+            // Radar obstacle point
+            var obstaclePoint = this.getObstaclePoint(tank.location, tank.radarDirection);
+
+            // Build sensor
+            var sensor = {};
+            sensor.location = tank.location;
+            sensor.bodyDirection = tank.bodyDirection;
+            sensor.gunDirection = tank.gunDirection;
+            sensor.radarDirection = tank.radarDirection;
+            sensor.speed = tank.speed;
+            if (obstaclePoint !== null) {
+                sensor.obstacleDistance = (new LineSeg(tank.location, obstaclePoint)).length();
+                sensor.obstacleType = "wall";
+            }
+            else {
+                sensor.obstacleDistance = NaN;
+                sensor.obstacleType = "empty";
+            }
+
+            // Call controller
             var commander = new Commander();
-            var sensor = this.generateSensor(tank);
             player.controller.onStep(sensor, commander);
 
             // Show messages
@@ -187,6 +225,11 @@ Game.prototype.run = function()
 
             var speedVector = util.directionAsVector(tank.bodyDirection, tank.speed);
             tank.location = tank.location.offset(speedVector);
+
+            // Draw
+            this.gd.drawObject(tank.bodyFace, tank.location, tank.bodyDirection);
+            this.gd.drawObject(tank.gunFace, tank.location, tank.gunDirection);
+            this.gd.drawLine(tank.location, obstaclePoint);
 
             // Check collision
             if (this.checkCollision(tank)) {
