@@ -1,6 +1,7 @@
 var util = require("./util.js");
 var Vector = util.Vector;
-var Location = util.Vector;
+var Location = util.Location;
+var LineSeg = util.LineSeg;
 
 
 var Commander = function()
@@ -31,19 +32,30 @@ Commander.prototype.setRadar = function(direction)
     this.radarDirection = direction;
 }
 
-var Tank = function()
+var Tank = function(location)
 {
     this.bodyDirection = 0.0;
     this.gunDirection = 0.0;
     this.radarDirection = 0.0;
     this.speed = 0.0;
-    this.location = new Location();
+    this.location = location;
 }
 
-var BattleField = function(width, height)
+var Map = function(width, height)
 {
     this.width = width;
     this.height = height;
+    this.lines = [
+        new LineSeg(new Vector(0, 0), new Vector(this.width, 0)),
+        new LineSeg(new Vector(this.width, 0), new Vector(this.width, this.height)),
+        new LineSeg(new Vector(this.width, this.height), new Vector(0, this.height)),
+        new LineSeg(new Vector(0, this.height), new Vector(0, 0))
+    ];
+}
+
+Map.prototype.center = function()
+{
+    return new Location(this.width / 2, this.height / 2);
 }
 
 var Player = function(name, script)
@@ -66,7 +78,13 @@ var Game = function(battleField)
     this.field = battleField;
     this.motionListeners = new Array();
     this.timeLimit = 10000;
+    this.map = new Map(100, 100);
     this.players = new Array();
+}
+
+Game.prototype.setMap = function(map)
+{
+    this.map = map;
 }
 
 Game.prototype.setTimeLimit = function(limit)
@@ -84,6 +102,22 @@ Game.prototype.addPlayer = function(player)
     this.players.push(player);
 }
 
+Game.prototype.getObstaclePoint = function(location, radarDirection)
+{
+    var radarRayLine = new LineSeg(location, location.offset(util.directionAsVector(radarDirection, 10000000)));
+
+    for (i in this.map.lines)
+    {
+        var line = this.map.lines[i];
+        var cross = util.getLinesCrossPoint(line, radarRayLine);
+        if (cross !== null)
+        {
+            return cross;
+        }
+    }
+    return null;
+}
+
 Game.prototype.generateSensor = function(tank)
 {
     var sensor = {};
@@ -91,8 +125,20 @@ Game.prototype.generateSensor = function(tank)
     sensor.bodyDirection = tank.bodyDirection;
     sensor.gunDirection = tank.gunDirection;
     sensor.radarDirection = tank.radarDirection;
-    sensor.obstacleDistance = 100.0;
-    sensor.obstacleType = "soil";
+
+    var obstaclePoint = this.getObstaclePoint(tank.location, tank.radarDirection);
+    if (obstaclePoint !== null)
+    {
+        sensor.obstacleDistance = (new LineSeg(tank.location, obstaclePoint)).length();
+        sensor.obstacleType = "wall";
+    }
+    else
+    {
+        sensor.obstacleDistance = null
+        sensor.obstacleType = null;
+    }
+
+    return sensor;
 }
 
 Game.prototype.checkCollision = function(tank)
