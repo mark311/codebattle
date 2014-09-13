@@ -145,8 +145,8 @@ Game.prototype.generateSensor = function(tank)
     }
     else
     {
-        sensor.obstacleDistance = null
-        sensor.obstacleType = null;
+        sensor.obstacleDistance = NaN;
+        sensor.obstacleType = "empty";
     }
 
     return sensor;
