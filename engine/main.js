@@ -1,15 +1,7 @@
 var codebattle = require('./codebattle.js');
 var util = require('./util.js');
 
-var MotionListener = function()
-{}
-MotionListener.prototype.onObjectMoved = function(time, object, location)
-{
-    console.log(time, location);
-}
-
 game = new codebattle.Game();
-game.addMotionListener(new MotionListener());
 
 var Controller1 = function() {}
 Controller1.prototype.onStep = function(sensor, commander)

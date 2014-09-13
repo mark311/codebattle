@@ -102,11 +102,6 @@ Game.prototype.setTimeLimit = function(limit)
     this.timeLimit = limit;
 }
 
-Game.prototype.addMotionListener = function(listener)
-{
-    this.motionListeners.push(listener);
-}
-
 Game.prototype.addPlayer = function(player)
 {
     this.players.push(player);
@@ -192,11 +187,6 @@ Game.prototype.run = function()
 
             var speedVector = util.directionAsVector(tank.bodyDirection, tank.speed);
             tank.location = tank.location.offset(speedVector);
-
-            for (i in this.motionListeners)
-            {
-                this.motionListeners[i].onObjectMoved(time, tank, tank.location);
-            }
 
             // Check collision
             if (this.checkCollision(tank)) {
