@@ -106,11 +106,17 @@ var Game = function(battleField)
     this.map = new Map(100, 100);
     this.players = new Array();
     this.gd = new display.GraphicDevice();
+    this.fps = 30;
 }
 
 Game.prototype.setMap = function(map)
 {
     this.map = map;
+}
+
+Game.prototype.setFps = function(fps)
+{
+    this.fps = fps;
 }
 
 Game.prototype.setTimeLimit = function(limit)
@@ -173,7 +179,8 @@ Game.prototype.run = function()
         this.gd.drawObject(tank.gunFace, tank.location, tank.gunDirection);
     }
 
-    while (!finished && time < this.timeLimit)
+    var frameLimit = this.timeLimit * this.fps;
+    while (!finished && time < frameLimit)
     {
         // New frame
         this.gd.newFrame();
@@ -219,11 +226,11 @@ Game.prototype.run = function()
 
             // Apply command on tank
             tank.radarDirection = commander.radarDirection;
-            tank.gunDirection += commander.gunDirectionAmend;
-            tank.bodyDirection += commander.bodyDirectionAmend;
-            tank.speed += commander.acceleration;
+            tank.gunDirection += commander.gunDirectionAmend / this.fps;
+            tank.bodyDirection += commander.bodyDirectionAmend / this.fps;
+            tank.speed += commander.acceleration / this.fps;
 
-            var speedVector = util.directionAsVector(tank.bodyDirection, tank.speed);
+            var speedVector = util.directionAsVector(tank.bodyDirection, tank.speed / this.fps);
             tank.location = tank.location.offset(speedVector);
 
             // Draw
